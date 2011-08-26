@@ -1,0 +1,443 @@
+﻿<%@ page contentType="text/html; charset=UTF-8" %>
+<%@ taglib uri="/tlds/marketmaker.tld" prefix="dr" %>
+<%@ taglib uri="/tlds/struts-bean.tld" prefix="bean" %>
+<%@ taglib uri="/tlds/struts-logic.tld" prefix="logic" %>
+<%@ taglib uri="/tlds/jdo.tld" prefix="jdo" %>
+<%@ taglib uri="/tlds/string.tld" prefix="str" %>
+
+<dr:page>
+	<bbb></bbb>
+<bean:parameter id="productID" name="productID" value=""/>
+<jdo:objectById id="product" className="com.digitalriver.catalog.Product" key="<%=productID%>" />
+<dr:defineDataObject id="productData" name="product" methodName="productData"/>
+<div id="dr_ProductDetails" class="dr_Content">
+<logic:if name="productData" op="notPresent">
+<logic:then>
+  <span class="dr_error"><dr:resource key="EXCEPTION_CAT_000002_MESSAGE"/></span>
+</logic:then>
+<logic:else>
+  <bean:define id="companyID" name="page" property="user.catalog.companyID"/>
+  <bean:define id="productDataID" name="productData" property="productDataID"/>
+  <div id="dr_productSummary">
+    <div id="dr_thumbnailImage"><img alt="<bean:write name="productData" property="displayName" filter="false" ignore="true"/>" src="<dr:url companyID="<%=companyID%>" category="product/detail" name="productData" property="detailImage"/>"  border="0"/></div>
+    <div id="dr_purchaseDetails">
+      <dr:form htmlFormName="ProductDetailsForm" action="AddItemToRequisition" method="post">
+        <div id="dr_productName"><h3><bean:write name="productData" property="displayName" filter="false" ignore="true"/></h3></div>
+		
+				
+				<%-- start gifting --%>
+				<logic:equal name="productData" property="isGiftingEnabled" value="true">
+					<bean:define id="isGiftable" value="false"/>
+					<bean:define id="siteGiftingTypeEnabled" value="none"/>
+					<%-- THIS PROPERTY IS MISSPELLED INTENTIONALLY, ITS SPELLED WRONG ON THE BACKEND!!!!--%>
+					<logic:if name="page" property="site.isPhysicalGfitngEnabled" value="true" op="equal">
+						<logic:then>
+							<bean:update id="siteGiftingTypeEnabled" value="physical"/>
+							<logic:equal name="page" property="site.isDigitalGiftingEnabled" value="true">
+								<bean:update id="siteGiftingTypeEnabled" value="both"/>
+							</logic:equal>
+						</logic:then>
+						<logic:else>
+							<logic:equal name="page" property="site.isDigitalGiftingEnabled" value="true">
+								<bean:update id="siteGiftingTypeEnabled" value="digital"/>
+							</logic:equal>
+						</logic:else>
+					</logic:if>
+				
+					<logic:switch name="siteGiftingTypeEnabled">
+						<logic:case op="equal" value="both">
+							<bean:update id="isGiftable" value="true"/>
+						</logic:case>
+						<logic:case op="equal" value="digital">
+							<logic:equal name="productData" property="product.downloadable" value="true">
+								<bean:update id="isGiftable" value="true"/>
+								<%-- if a physical variation exists, add a note saying only digital version is giftable
+									<logic:equal name="productData" property="isPhysical" value="true">
+										Only Download version is giftable
+									</logic:equal>
+								--%>
+							</logic:equal>
+						</logic:case>
+						<logic:case op="equal" value="physical">
+							<logic:equal name="productData" property="isPhysical" value="true">
+								<bean:update id="isGiftable" value="true"/>
+								<%-- if a digital variation exists, add a note saying only physical version is giftable
+									<logic:equal name="productData" property="product.downloadable" value="true">
+										Only Physical version is giftable
+									</logic:equal>
+								--%>
+							</logic:equal>
+						</logic:case>
+					</logic:switch>
+	
+					<logic:equal name="isGiftable" value="true">
+						<div id="dr_gifting"> 
+							<img src="<dr:url template="true" rscName="gift_32.png" />" alt="<dr:resource key="YOU_MAY_PURCHASE_THIS_PRODUCT_AS_A_GIFT"/>"/>
+						</div>
+					</logic:equal>
+				</logic:equal>
+				 
+        <%-- end gifting --%>
+        <logic:if name="product" property="allVariations.size" value="0" op="equal"> 
+          <logic:then>
+            <input type="hidden" name="productID" value="<bean:write name="productID"/>"/>
+            <p class="dr_price">
+              <%-- BEGIN PRICE --%>
+              <bean:define id="productIDPrice" name="productData" property="product.productID"/>
+              <dr:defineProductPrice productID="<%=productIDPrice%>" />
+              <%-- B. STRIKE THROUGH PRICE AND FORMATTING --%>
+              <logic:equal name="productPrice" property="discounted" value="true">
+                <span class="dr_regularPriceLabel"><dr:resource key="REGULAR_PRICE_COLON"/></span>
+                <span class="dr_strikePrice">
+                  <%-- begin logic to display price without VAT if activated in admin screens --%>
+                  <logic:equal name="page" property="localePrefs.displayPriceEnabled" value="true">
+                    <span style='text-decoration: line-through'><bean:write name="productPrice" property="priceListPrice"/></span>
+                  </logic:equal>
+                  <%-- begin logic to display slash if price with VAT AND price w/o VAT is activated in admin screens --%>
+                  <logic:if name="page" property="localePrefs.displayPriceEnabled" value="true" op="equal">
+                  <logic:and name="page" property="localePrefs.displayPriceWithVatEnabled" value="true" op="equal" />
+                    <logic:then> 
+                      /
+                    </logic:then>
+                  </logic:if>
+                  <%-- begin logic to display price WITH VAT if activated in admin screens --%>
+                  <logic:equal name="page" property="localePrefs.displayPriceWithVatEnabled" value="true">
+                    <span style='text-decoration: line-through'><bean:write  name="productPrice" property="priceListPriceWithVat" /></span></span> <span class="lightgray"><dr:resource key="INCLUDING_VAT"/>
+                  </logic:equal>
+                </span>
+                <br /><span class="dr_promoPriceLabel"><dr:resource key="PROMO_PRICE_COLON"/></span>
+              </logic:equal>
+              <%-- E. STRIKE THROUGH PRICE AND FORMATTING --%>
+              <span class="dr_actualPrice">
+                <%-- begin logic to display price without VAT if activated in admin screens --%>
+                <logic:equal name="page" property="localePrefs.displayPriceEnabled" value="true">
+                  <bean:write name="productPrice" property="yourPrice"/>
+                </logic:equal>
+                <%-- begin logic to display slash if price with VAT AND price w/o VAT is activated in admin screens --%>
+                <logic:if name="page" property="localePrefs.displayPriceEnabled" value="true" op="equal">
+                  <logic:and name="page" property="localePrefs.displayPriceWithVatEnabled" value="true" op="equal" />
+                  <logic:then> 
+                    /
+                  </logic:then>
+                </logic:if>
+                <%-- begin logic to display price WITH VAT if activated in admin screens --%>
+                <logic:equal name="page" property="localePrefs.displayPriceWithVatEnabled" value="true">
+                  <bean:write name="productPrice" property="yourPriceWithVat"/></span> <span class="lightgray"><dr:resource key="INCLUDING_VAT"/>
+                </logic:equal>
+              </span>
+              <%-- END PRICE --%>
+              <%-- BEGIN logic to display fee links/info and prices --%>
+              <logic:equal name="page" property="localePrefs.displayPriceWithVatEnabled" value="true">
+                <div class="dr_aggregatedFeesContainer">
+                  <div class="dr_aggregatedFees">
+                    <logic:iterate id="fee" name="productPrice" property="aggregatedProductFees">
+                      <div class="dr_feeLineItem">
+                        <span class="dr_feeDisplayName">
+                          <bean:define id="hasFeeURL" value="false" />	
+                          <logic:equal name="fee" property="feeTypeCode" value="EWaste">
+                            <a href="<dr:action actionName="DisplayPage"/>&id=FeesInfoPage&feeType=ewaste" onclick="popUp(this.href,'EWasteInfo',410,380);return false;" target="_blank">
+                            <bean:update id="hasFeeURL" value="true"/>
+                          </logic:equal>								
+                          <logic:equal name="fee" property="feeTypeCode" value="WEEE">
+                            <a href="<dr:action actionName="DisplayPage"/>&id=FeesInfoPage&feeType=weee" onclick="popUp(this.href,'WEEEFeeInfo',410,380);return false;" target="_blank">
+                            <bean:update id="hasFeeURL" value="true"/>
+                          </logic:equal>								
+                          <bean:write name="fee" property="displayName"/><logic:equal name="hasFeeURL" value="true"></a></logic:equal><dr:resource key="COLON"/>
+                        </span>
+                        <span class="dr_priceContainer">
+                          <logic:equal name="fee" property="discounted" value="true">
+                            <span class="dr_strikePrice">
+                              <span style='text-decoration: line-through'><bean:write name="fee" property="extendedListAmountWithTax" /></span>
+                              <span class="lightgray"> <dr:resource key="INCLUDING_VAT"/></span>
+                            </span>										
+                          </logic:equal>
+                          <span class="dr_feePrice"><bean:write name="fee" property="extendedSaleAmountWithTax" formatter="<%=com.digitalriver.form.Form.CURRENCY_FORMAT%>"/></span>
+                          <span class="lightgray"> <dr:resource key="INCLUDING_VAT"/></span>
+                        </span>
+                      </div>
+                    </logic:iterate>
+                  </div>
+                  
+                  <%-- BEGIN logic to display aggregated price & fees total with tax --%>
+                  <logic:notEmpty name="productPrice" property="aggregatedProductFees">
+                    <div id="dr_aggregatedPriceFeesTotal">
+                      <span class="dr_totalLabel"><dr:resource key="TOTAL_COLON"/> </span>
+                      <span class="dr_totalPriceContainer">
+                        <logic:equal name="productPrice" property="productOrAnyFeeDiscounted" value="true">
+                          <span class="dr_strikePrice">
+                            <span style='text-decoration: line-through'><bean:write name="productPrice" property="extendedProductAndFeesListAmountWithTax" /></span>
+                            <span class="lightgray"> <dr:resource key="INCLUDING_VAT"/></span>
+                          </span>
+                        </logic:equal>
+                        <span class="dr_actualFeeProductPrice"><bean:write name="productPrice" property="extendedProductAndFeesSaleAmountWithTax"formatter="<%=com.digitalriver.form.Form.CURRENCY_FORMAT%>"/></span>
+                        <span class="lightgray"> <dr:resource key="INCLUDING_VAT"/></span>
+                      </span>
+                    </div>
+                  </logic:notEmpty>
+                  <%-- END logic to display aggregated price & fees total with tax --%>
+                </div>
+                <div class="dr_clearBoth"> </div>
+              </logic:equal>
+              <%-- END logic to display fee links/info and prices --%>
+            </p><!-- /.dr_price -->
+          </logic:then>
+          <logic:else>
+            <p class="dr_variationInfo">
+              <%-- BEGIN logic to determine how to display the variations --%>
+              <logic:if name="site" property="PRODUCT_DETAIL_DISPLAY_TYPE" value="radio" op="equal"> 
+                <logic:then>
+                  <%-- Displays radio button list for combinations of family, attributes and price --%>
+                  <logic:iterate id="variation" name="product" property="allVariations" indexId="idx">
+                    <dr:defineDataObject id="varProductData" name="variation" methodName="productData"/>
+                    <bean:define id="varProdID" name="variation" property="productID"/>
+                    <bean:define id="varProdDataID" name="varProductData" property="productDataID"/>
+                    <bean:define id="varProdChecked" value=""/>
+                    <logic:equal name="idx" value="0">
+                      <str:updateString id="varProdChecked"> checked="checked"</str:updateString>
+                    </logic:equal>
+                    <input type="radio" name="productID" id="radio_<bean:write name="varProdID"/>" value="<bean:write name="varProdID"/>"<bean:write name="varProdChecked" filter="false"/>/>
+                    <label for="radio_<bean:write name="varProdID"/>">
+                      <bean:define id="variationFound" value="false"/>
+                      <logic:iterate id="item" name="variation" property="definingValues">
+                        <logic:equal name="variationFound" value="true">
+                          <dr:resource key="DASH"/>
+                        </logic:equal>
+                        <bean:update id="variationFound" value="true"/>
+                        <logic:if name="item" value="Download" op="equal">
+                          <logic:then>
+                            <dr:resource key="DELIVERY_DIGITAL"/>
+                          </logic:then>
+                          <logic:elseif name="item" value="Physical" op="equal">
+                            <logic:then>
+                              <dr:resource key="DELIVERY_PHYSICAL"/>
+                            </logic:then>
+                            <logic:else>
+                              <bean:write name="item"/>
+                            </logic:else>
+                          </logic:elseif>
+                        </logic:if>
+                      </logic:iterate>
+                    </label>
+                    <dr:defineProductPrice productID="<%=varProdID%>"/>
+                    <%-- begin logic to display price without VAT if activated in admin screens --%>
+                    <logic:equal name="page" property="localePrefs.displayPriceEnabled" value="true">
+                      <bean:write name="productPrice" property="yourPrice"/>
+                    </logic:equal>
+                    <%-- begin logic to display slash if price with VAT AND price w/o VAT is activated in admin screens --%>
+                    <logic:if name="page" property="localePrefs.displayPriceEnabled" value="true" op="equal">
+                    <logic:and name="page" property="localePrefs.displayPriceWithVatEnabled" value="true" op="equal" />
+                      <logic:then> 
+                        /
+                      </logic:then>
+                    </logic:if>
+                    <%-- begin logic to display price WITH VAT if activated in admin screens --%>
+                    <logic:equal name="page" property="localePrefs.displayPriceWithVatEnabled" value="true">
+                      <bean:write name="productPrice" property="yourPriceWithVat"/></span> <span class="lightgray"><dr:resource key="INCLUDING_VAT"/>
+                    </logic:equal>
+                    <br />
+                  </logic:iterate>
+                  <%-- END radio button list of variations --%>
+                </logic:then> 
+                <logic:else>
+                  <%-- Displays dropdown list for combinations of family, attributes and price --%>
+                  <label for="please_select" class="dr_hiddenText"><dr:resource key="PLEASE_SELECT"/></label>
+                  <select name="productID" id="please_select">
+                    <%-- BEGIN dropdown list of variations --%>
+                    <logic:iterate id="variation2" name="product" property="allVariations" indexId="idx">
+                      <dr:defineDataObject id="varProductData2" name="variation2" methodName="productData"/>
+                      <bean:define id="varProdID2" name="variation2" property="productID"/>
+                      <bean:define id="varProdDataID2" name="varProductData2" property="productDataID"/>
+                      <option value="<bean:write name="varProdID2"/>">
+                        <logic:iterate id="item" name="variation2" property="definingValues">
+                          <logic:if name="item" value="Download" op="equal">
+                            <logic:then>
+                              <dr:resource key="DELIVERY_DIGITAL"/>
+                            </logic:then>
+                            <logic:elseif name="item" value="Physical" op="equal">
+                              <logic:then>
+                                <dr:resource key="DELIVERY_PHYSICAL"/>
+                              </logic:then>
+                              <logic:else>
+                                <bean:write name="item"/>
+                              </logic:else>
+                            </logic:elseif>
+                          </logic:if>
+                          <dr:resource key="DASH"/> 
+                        </logic:iterate>
+                        <dr:defineProductPrice productID="<%=varProdID2%>"/>
+                        <bean:write name="productPrice" property="yourPrice"/>
+                      </option>
+                    </logic:iterate>
+                  </select>
+                  <%-- END dropdown list of variations --%>
+                </logic:else>
+              </logic:if>
+              <%-- END logic to determine how to display the variations --%>
+            </p><!-- /.dr_variationInfo -->
+          </logic:else>
+        </logic:if>
+  
+        <%-- BEGIN display of volume based licensing points --%>
+        <dr:vlpPrice id="vlpprice" productId="<%=productID%>" />
+        <logic:notEmpty name="vlpprice" property="productPoints">
+          <p class="dr_pointsPerUnit"><bean:write name="vlpprice" property="productPoints" /> <dr:resource key="POINTS"/></p>
+        </logic:notEmpty>
+  
+        <%-- Begin display of min. quantity --%>
+        <bean:define id="minQuantity" value="1" type="java.lang.Object"/>
+        <logic:greaterThan name="productData" property="minOrderQuantity" value="0">
+          <bean:update id="minQuantity" name="productData" property="minOrderQuantity"/>
+          <p class="dr_minQuantity"><dr:resource key="MIN_ORDER_QUANTITY_MESSAGE" param0="<%=minQuantity%>"/></p>
+        </logic:greaterThan>
+  
+        <%-- Begin display of max. quantity --%>
+        <logic:greaterThan name="productData" property="maxOrderQuantity" value="0">
+          <bean:define id="maxQuantity" name="productData" property="maxOrderQuantity"/>
+          <p class="dr_maxQuantity"><dr:resource key="MAX_ORDER_QUANTITY_MESSAGE" param0="<%=maxQuantity%>"/></p>
+        </logic:greaterThan>
+  
+        <%-- Begin display of quantity input --%>
+        <p class="dr_quantity">
+          <label for="quantity"><dr:resource key="QUANTITY"/></label> 
+          <input id="quantity" type="text" name="quantity" size="2" value="<bean:write name="minQuantity"/>"/>
+   	    </p>
+        <span class="dr_error" id="qty_error_span"></span>
+        <p>
+          <logic:equal name="productData" property="preorderEnabled" value="true">
+            <logic:if name="site" property="DISPLAY_BUTTONS_AS_IMAGES" value="yes" op="equal"> 
+              <logic:then>
+                <input type="image" src="<dr:url template="true" i18n="true" rscName="gl_pre-order.gif"/>"/>
+              </logic:then> 
+              <logic:else>
+                <input type="submit" class="dr_button" value="<dr:resource key="PRE-ORDER"/>"/>  
+              </logic:else> 
+            </logic:if>
+          </logic:equal>
+          <logic:equal name="productData" property="preorderEnabled" value="false">
+            <logic:if name="site" property="DISPLAY_BUTTONS_AS_IMAGES" value="yes" op="equal"> 
+              <logic:then>
+                <input type="image" src="<dr:url template="true" i18n="true" rscName="pd_buynow.gif"/>"/>  	
+              </logic:then> 
+              <logic:else>
+                <input type="submit" class="dr_button" value="<dr:resource key="BTN_BUY_NOW"/>"/>   
+              </logic:else> 
+            </logic:if>
+          </logic:equal>
+        </p>
+      </dr:form><!-- /ProductDetailsForm -->
+    </div><!-- /#dr_purchaseDetails -->
+  </div><!-- /#dr_productSummary -->
+  <br style="clear:both;" /><br />
+
+  <%-- BEGIN display of volume based licensing tiers and prices table --%>
+  <dr:vlpPrice id="vlpprice2" productId="<%=productID%>" />
+  <logic:notEmpty name="vlpprice2" property="productPoints">
+    <p id="dr_vlpSection">
+      <div class="dr_vlpTitle"><strong><bean:write name="productData" property="displayName" filter="false" ignore="true"/> <dr:resource key="VALUE_PROGRAM_POINTS"/></strong></div>
+      <table id="dr_vlpPointLevels">
+        <tr>
+          <th class="dr_pointLevels"><dr:resource key="POINT_LEVELS"/></th>
+          <th class="dr_price"><dr:resource key="PRICE"/></th>
+        </tr>
+        <%-- BEGIN display of tiers for product without variations --%>
+        <logic:equal name="vlpprice" property="variationLevelPricing" value="false">
+          <logic:iterate id="vlptierprice" name="vlpprice2" property="vlpTierPrices" indexId="index" >
+            <tr>
+              <td class="dr_pointLevels"><bean:write name="vlptierprice" property="min"/> <dr:resource key="DASH"/> <bean:write name="vlptierprice" property="max"/></td>
+              <td class="dr_price"><bean:write name="vlptierprice" property="vlpPrice.amount" ignore="false" formatter="<%= com.digitalriver.form.Form.CURRENCY_FORMAT %>" /></td>
+            </tr>
+          </logic:iterate>
+        </logic:equal>
+        <%-- END display of tiers for product without variations --%>
+        <%-- BEGIN display of tiers for product WITH variations --%>
+        <logic:notEqual name="vlpprice" property="variationLevelPricing" value="false">
+          <tr>
+            <td class="dr_pointLevels"> </td>
+            <td class="dr_price">
+              <logic:iterate id="vlptierprice" name="vlpprice" property="vlpTierPrices" indexId="index" >
+                <bean:write name="vlptierprice" property="min"/> <dr:resource key="DASH"/> <bean:write name="vlptierprice" property="max"/>
+                <logic:iterate id="variationTierPrice" name="vlptierprice" property="tierPriceForVariations">
+                  <bean:write name="variationTierPrice" property="amount" ignore="false" formatter="<%= com.digitalriver.form.Form.CURRENCY_FORMAT%>" />
+                </logic:iterate>
+              </logic:iterate>
+            </td>
+          </tr>
+
+        </logic:notEqual>
+        <%-- END display of tiers for product WITH variations --%>
+      </table>
+    </p><!-- /#dr_vlpSection -->
+  </logic:notEmpty>
+  <%-- END display of volume based licensing tiers and prices table --%>
+  <div id="dr_longDescription"><bean:write name="productData" property="longDescription" filter="false"/></div>
+	<dr:url contentElement="true" rscName="SocialNetworkLinks"/>
+</logic:else>
+</logic:if>
+</div><!-- /#dr_ProductDetails.dr_Content -->
+<!-- Quantity input JS validation -->
+<script type="text/javascript">
+(function(){
+  // Validation constants
+  var ErrorBlurClassName = 'dr_inputErrorBlur';
+  var ErrorFocusClassName = 'dr_inputErrorFocus';
+  var QtyErrorSpanId = 'qty_error_span';
+  // Get a reference to the quantity field
+  var qtyField = document.getElementById('quantity');
+  // Returns true when the quantity is a positive integer
+  function validQty(qty) {
+    return /^[1-9]\d*$/.test(qty);
+  }
+  // Switch the class when the quantity is invalid
+  function setQtyFocus() {
+    if (!validQty(qtyField.value)) {
+      qtyField.className = ErrorFocusClassName;
+    }
+  }
+  // Resets the quantity field class when the user tabs off the field
+  function setQtyBlur() {
+    // Trim leading/trailing white space
+    qtyField.value = qtyField.value.replace(/^\s+|\s+$/g, '');
+    // Hide the error message and set the field back to normal
+    if (validQty(qtyField.value)) {
+      document.getElementById(QtyErrorSpanId).innerHTML = '';
+      qtyField.className = '';
+      return true;
+    }
+    else {
+      // Switch the class if the quantity is invalid
+      qtyField.className = ErrorBlurClassName;
+      return false;
+    }
+  }
+  // Attach onfocus, onblur, and onkeydown events to the quantity field
+  qtyField.onfocus = setQtyFocus;
+  qtyField.onblur = setQtyBlur;
+  qtyField.onkeydown = function(e){
+    e = e || window.event;
+    var keyNum = (window.event) ? e.keyCode : e.which;
+    return ((keyNum == 8) // backspace
+        || (keyNum == 9) // tab
+        || (keyNum == 13) // carriage return
+        || (keyNum == 35) // end key
+        || (keyNum == 36) // home key
+        || (keyNum == 37) // left arrow
+        || (keyNum == 39) // right arrow
+        || (keyNum == 46) // delete
+        || ((keyNum >= 96) && (keyNum <= 105)) // 0-9 on the keypad
+        || (!e.shiftKey && (keyNum >= 48) && (keyNum <= 57)));
+  };
+  // Valides the quantity field upon form submission
+  qtyField.form.onsubmit = function(){
+    if (setQtyBlur()) {
+      return true;
+    }
+    else {
+      // Displays an "Invalid Quantity" message in the dr_error span below the quantity field
+      document.getElementById(QtyErrorSpanId).innerHTML = "<str:escape><dr:resource key="INVALID_QUANTITY"/></str:escape>";
+      setQtyFocus();
+      return false;
+    }
+  };
+})();
+</script>
+</dr:page>
