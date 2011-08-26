@@ -6,7 +6,7 @@
 <%@ taglib uri="/tlds/string.tld" prefix="str" %>
 
 <dr:page>
-	<ccc></ccc>
+	<ddd></ddd>
 <bean:parameter id="productID" name="productID" value=""/>
 <jdo:objectById id="product" className="com.digitalriver.catalog.Product" key="<%=productID%>" />
 <dr:defineDataObject id="productData" name="product" methodName="productData"/>
